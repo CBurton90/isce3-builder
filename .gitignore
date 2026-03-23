@@ -1,3 +1,8 @@
+inputs/**/*.h5
+outputs/*
+!outputs/.gitkeep
+!inputs/**/.gitkeep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

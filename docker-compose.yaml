@@ -1,0 +1,14 @@
+services:
+  isce3:
+    build:
+      context: .
+      target: final
+    image: isce3:0.25.7
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./inputs:/opt/inputs
+      - ./outputs:/opt/outputs
+    working_dir: /opt
+    tty: true
+    stdin_open: true
