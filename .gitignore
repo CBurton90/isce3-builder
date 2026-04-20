@@ -1,7 +1,18 @@
 inputs/**/*.h5
 outputs/*
+products/*
+dem/*
+logs/*
+state_files/*
+*.sif
+configs/*_nisar_cuda.yaml
+.snakemake
 !outputs/.gitkeep
+!products/.gitkeep
 !inputs/**/.gitkeep
+!dem/.gitkeep
+!logs/.gitkeep
+!state_files/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

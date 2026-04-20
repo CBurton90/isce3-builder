@@ -4,7 +4,7 @@
 OUTPUT_DIR="/opt/dem"
 BUCKET="s3://copernicus-dem-30m"
 
-mkdir -p "$OUTPUT_DIR"
+# mkdir -p "$OUTPUT_DIR"
 
 for lat in S35 S36 S37 S38 S39; do
     for lon in E172 E173 E174 E175 E176 E177 E178; do
