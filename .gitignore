@@ -7,6 +7,7 @@ state_files/*
 *.sif
 configs/*_nisar_cuda.yaml
 .snakemake
+.python-version
 !outputs/.gitkeep
 !products/.gitkeep
 !inputs/**/.gitkeep

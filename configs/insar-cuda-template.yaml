@@ -1,0 +1,186 @@
+runconfig:
+
+    name: ESNZ_gunw_workflow
+
+    groups:
+
+        logging:
+            path: '/opt/outputs/insar.log'
+            write_mode: 'w'
+
+        pge_name_group:
+            pge_name: INSAR_L_PGE
+
+        input_file_group:
+            # Required - File path to reference RSLC HDF5 file
+            reference_rslc_file: '/opt/inputs/rslc/NISAR_L1_PR_RSLC_009_094_A_160_2005_DHDH_A_20260103T182149_20260103T182212_X05010_N_P_J_001.h5'
+            # Required - File path to secondary RSLC HDF5 file
+            secondary_rslc_file: '/opt/inputs/rslc/NISAR_L1_PR_RSLC_010_094_A_160_2005_DHDH_A_20260115T182149_20260115T182213_X05010_N_P_J_001.h5'
+
+        dynamic_ancillary_file_group:
+            # REQUIRED - Digital elevation model
+            dem_file: '/opt/dem/dem_wgs84.vrt'
+
+            # Digital elevation model file description, optional
+            dem_file_description: Copernicus DEM 30m over New Zealand
+
+            water_mask_file:
+
+            # Water mask file description, optional
+            water_mask_file_description:
+
+            orbit_files:
+                reference_orbit_file:
+                secondary_orbit_file:
+            tec_file:
+
+            # Troposphere weather model files
+            troposphere_weather_model_files:
+                reference_troposphere_file:
+                secondary_troposphere_file:
+
+        product_path_group:
+            product_path: /opt/products
+            scratch_path: /opt/outputs
+            sas_output_file: /opt/products/_product.h5
+            qa_output_dir: /opt/qa
+
+        primary_executable:
+            product_type: GUNW
+ 
+        debug_level_group:
+            debug_switch: false
+
+        processing:
+            input_subset:
+                list_of_frequencies:
+                    A: [HH]
+
+            geocode:
+                output_epsg: 32759
+                top_left:
+                    y_abs:
+                    x_abs:
+                bottom_right:
+                    y_abs:
+                    x_abs:
+                output_posting:
+                    A:
+                        x_posting: 80
+                        y_posting: 80
+                wrapped_interferogram:
+                    # Default interpolation method is SINC method
+                    interp_method: SINC
+                    output_posting:
+                        A:
+                            x_posting: 20
+                            y_posting: 20
+                lines_per_block: 4000
+                interp_method: BILINEAR
+
+            radar_grid_cubes:
+                output_epsg: 32759
+                output_posting:
+                    x_posting:
+                    y_posting:
+                top_left:
+                    y_abs:
+                    x_abs:
+                bottom_right:
+                    y_abs:
+                    x_abs:
+
+            bandpass:
+                lines_per_block: 4000
+
+            ionosphere_phase_correction:
+                spectral_diversity: main_diff_ms_band
+                enabled: true
+                lines_per_block: 4000
+                dispersive_filter:
+                    filter_mask_type:
+                    - coherence
+                    - subswath_mask
+                    filter_coherence_threshold: 0.2
+                    kernel_range: 67
+                    kernel_azimuth: 67
+                    sigma_range: 22
+                    sigma_azimuth: 22
+
+            troposphere_delay: # need to find/store ECMWF data for NZ 
+                enabled: false
+                package: raider
+                weather_model_type: HRES
+                delay_direction: line_of_sight_mapping
+                enable_wet_product: true
+                enable_hydrostatic_product: true
+                enable_comb_product: false
+
+            geo2rdr:
+                lines_per_block: 4000
+
+            rdr2geo:
+                lines_per_block: 4000
+
+            coarse_resample:
+                lines_per_tile: 4000
+                columns_per_tile: 1000
+
+            dense_offsets: # pixel offset amplitude tracking
+                enabled: true
+                window_range: 64
+                window_azimuth: 128
+                half_search_range: 16
+                half_search_azimuth: 32
+                skip_range: 40
+                skip_azimuth: 75
+                correlation_surface_oversampling_factor: 16
+                deramping_method: magnitude
+                lines_per_block: 4000
+                cuda_streams: 4
+
+            offsets_product:
+                enabled: false
+
+            rubbersheet:
+                enabled: true
+                polyfitting:
+                    enabled: false
+                    degree: 2
+                    critical_value: 0.1
+                    samples_along_range: 200
+                    samples_along_azimuth: 200
+
+            fine_resample:
+                enabled: true
+                lines_per_tile: 200
+
+            crossmul:
+                range_looks: 3
+                azimuth_looks: 6
+                flatten: True
+                oversample: 2
+                lines_per_block: 4096
+
+            phase_unwrap:
+                range_looks: 7
+                azimuth_looks: 16
+                preprocess_wrapped_phase:
+                    enabled: true
+                    mask:
+                        mask_type: subswath_mask
+                bridge:
+                    enabled: true
+       
+                    # TODO OPTIONAL - To setup type of worker
+        worker:
+            intermediate_files_removal_enabled: true
+            internet_access: False
+            gpu_enabled: True
+            gpu_id: 0
+
+        output:
+            compression_enabled: True
+            compression_level: 4
+            chunk_size: [512, 512]
+            shuffle: True
