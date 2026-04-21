@@ -5,7 +5,7 @@ dem/*
 logs/*
 state_files/*
 *.sif
-configs/*_nisar_cuda.yaml
+configs/**/*_nisar_cuda.yaml
 .snakemake
 .python-version
 !outputs/.gitkeep

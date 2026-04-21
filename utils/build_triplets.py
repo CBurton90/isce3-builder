@@ -1,4 +1,5 @@
 import json
+import argparse
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def pair_gen(discovery_state_dict, tb_intervals):
 
     return pairs_dict
 
-def build_nisar_rslc_pairs(track=94, frame=160, tb_intervals=[12, 24, 36]):
+def build_nisar_rslc_pairs(track=94, frame=160, direction="ASCENDING", tb_intervals=[12, 24, 36]):
 
     """
     Take a NISAR RSLC discovery state Json and build all possible interferometric pairs.
@@ -50,9 +51,9 @@ def build_nisar_rslc_pairs(track=94, frame=160, tb_intervals=[12, 24, 36]):
     """
     
     root = Path(__file__).resolve().parent.parent
-    output_dir = root / "state_files"
-    input_path = output_dir / f"nisar_rslc_state_track{TRACK}_frame{FRAME}.json"
-    output_path = output_dir / f"nisar_rslc_ifg_pairs_track{TRACK}_frame{FRAME}.json"
+    output_dir = root / "state_files" / direction / str(track) / str(frame)
+    input_path = output_dir / f"nisar_rslc_state_track{track}_frame{frame}.json"
+    output_path = output_dir / f"nisar_rslc_ifg_pairs_track{track}_frame{frame}.json"
 
     discovery_json = json.loads(input_path.read_text())
 
@@ -69,7 +70,25 @@ def build_nisar_rslc_pairs(track=94, frame=160, tb_intervals=[12, 24, 36]):
     with open(output_path, "w") as f:
         json.dump(output, f, indent=2)
 
+def main():
+    parser = argparse.ArgumentParser(description="NISAR RSLC pair state generation")
+
+    parser.add_argument(
+        "--direction", type=str, required=True,
+        help="NISAR flight direction [ASCENDING|DESCENDING]"
+    )
+    parser.add_argument(
+        "--track", type=int, required=True,
+        help="NISAR track number"
+        )
+    parser.add_argument(
+        "--frame", type=int, required=True,
+    help="NISAR frame number"
+    )
+
+    args = parser.parse_args()
+
+    build_nisar_rslc_pairs(track=args.track, frame=args.frame, direction=args.direction, tb_intervals=[12, 24, 36])
+
 if __name__ == '__main__':
-    TRACK = 94 # hardcoded global vars, make dynamoic at some point
-    FRAME = 160
-    build_nisar_rslc_pairs(track=TRACK, frame=FRAME, tb_intervals=[12, 24, 36])
+    main()

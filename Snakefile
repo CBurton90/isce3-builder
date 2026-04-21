@@ -5,13 +5,16 @@ NISAR InSAR Snakemake Pipeline
 import json
 from pathlib import Path
 
-TRACK = 94 # hardcoded global vars, make dynamic at some point
-FRAME = 160
+TRACK = config["track"]
+FRAME = config["frame"]
+DIRECTION = config["direction"]
+OUTPUT_PROD_PATH = config["product_path"]
 IMAGE = "isce3cuda.sif"
 
 root = Path.cwd()
-state_output_dir = root / "state_files" # where we store json state files
-rslc_output_dir = root / "inputs/rslc" # where we store NISAR RSLC HDF5 scenes
+state_output_dir = root / "state_files" / DIRECTION / str(TRACK) / str(FRAME) # where we store json state files
+rslc_output_dir = root / "inputs" / DIRECTION / str(TRACK) / str(FRAME) / "rslc" # where we store NISAR RSLC HDF5 scenes
+rslc_output_dir.mkdir(parents=True, exist_ok=True)
 pairs_path = state_output_dir / f"nisar_rslc_ifg_pairs_track{TRACK}_frame{FRAME}.json"
 
 # load rslc pair state
@@ -44,7 +47,7 @@ rule process_pair:
   input:
     ref_rslc_h5 = lambda wildcards: h5_path(pairs[wildcards.pair_id]["ref_rslc"]),
     sec_rslc_h5 = lambda wildcards: h5_path(pairs[wildcards.pair_id]["sec_rslc"]),
-    cfg = "configs/{pair_id}_nisar_cuda.yaml"
+    cfg = f"configs/{DIRECTION}/{TRACK}/{FRAME}/{{pair_id}}_nisar_cuda.yaml"
   output:
     done = done_path("{pair_id}")
   resources:
@@ -54,23 +57,27 @@ rule process_pair:
     runtime=120,
   shell:
     """
+    mkdir -p {OUTPUT_PROD_PATH}/products/{DIRECTION}/{TRACK}/{FRAME}
+    mkdir -p ./configs/{DIRECTION}/{TRACK}/{FRAME}
+    mkdir -p ./logs/{DIRECTION}/{TRACK}/{FRAME}
+
     ml apptainer
 
     apptainer exec --nv \
       --pwd /opt \
       --writable-tmpfs \
-      --bind ./inputs:/opt/inputs \
+      --bind ./inputs/{DIRECTION}/{TRACK}/{FRAME}:/opt/inputs \
       --bind ./outputs:/opt/outputs \
-      --bind ./products:/opt/products \
+      --bind {OUTPUT_PROD_PATH}/products/{DIRECTION}/{TRACK}/{FRAME}:/opt/products \
       --bind ./dem:/opt/dem \
-      --bind ./configs:/opt/configs \
+      --bind ./configs/{DIRECTION}/{TRACK}/{FRAME}:/opt/configs \
       --bind ./qa:/opt/qa \
-      --bind ./logs:/opt/logs \
+      --bind ./logs/{DIRECTION}/{TRACK}/{FRAME}:/opt/logs \
       --bind ./patches/geocode_insar.py:/opt/isce3/packages/nisar/workflows/geocode_insar.py \
       {IMAGE} \
       python3 -u /opt/isce3/packages/nisar/workflows/insar.py \
       /opt/configs/{wildcards.pair_id}_nisar_cuda.yaml \
-      > logs/isce3_nisar_log_{wildcards.pair_id}.txt 2>&1
+      > logs/{DIRECTION}/{TRACK}/{FRAME}/isce3_nisar_bash_log_{wildcards.pair_id}.txt 2>&1
 
     touch {output.done}
     """
@@ -80,7 +87,7 @@ rule make_runconfig:
   input:
     template = "configs/insar-cuda-template.yaml"
   output:
-    cfg = "configs/{pair_id}_nisar_cuda.yaml"
+    cfg = f"configs/{DIRECTION}/{TRACK}/{FRAME}/{{pair_id}}_nisar_cuda.yaml"
   run:
     import yaml
 
@@ -89,7 +96,7 @@ rule make_runconfig:
     with open(input.template) as f:
       cfg =  yaml.safe_load(f)
 
-    cfg["runconfig"]["groups"]["logging"]["path"] = f"/opt/logs/isce3_nisar_log_{wildcards.pair_id}.txt"
+    cfg["runconfig"]["groups"]["logging"]["path"] = f"/opt/logs/isce3_nisar_journal_log_{wildcards.pair_id}.txt"
     cfg["runconfig"]["groups"]["input_file_group"]["reference_rslc_file"] = f"/opt/inputs/rslc/{pair['ref_rslc']}.h5"
     cfg["runconfig"]["groups"]["input_file_group"]["secondary_rslc_file"] = f"/opt/inputs/rslc/{pair['sec_rslc']}.h5"
     cfg["runconfig"]["groups"]["product_path_group"]["sas_output_file"] = f"/opt/products/{wildcards.pair_id}_product.h5"

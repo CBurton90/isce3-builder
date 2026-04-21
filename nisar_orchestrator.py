@@ -14,9 +14,6 @@ Step 5 - delete the reference RSLC for this batch as it is no longer required (S
 Step 6 - move to the next reference RSLC in the list and begin the process again from Step 2
 """
 
-root = Path.cwd()
-state_output_dir = root / "state_files" # where we store state files
-
 def load_rslc_pairs(path):
     with open(path) as f:
         pairs = json.load(f)
@@ -37,23 +34,32 @@ def build_ref_rslc2pairs(pairs):
         ref_rslc2pairs.setdefault(rslc_scene_id, []).append(pair_id)
     return ref_rslc2pairs
 
-def done_path(pair):
+def done_path(pair, track, frame, direction):
+    root = Path.cwd()
+    state_output_dir = root / "state_files" / direction / str(track) / str(frame) # where we store state files
     return str(state_output_dir / f"{pair}_nisar.done")
 
-def run_snakemake(targets, jobs, local_cores, dry_run):
+def deleted_path(ref_rslc_id, track, frame, direction):
+    root = Path.cwd()
+    state_output_dir = root / "state_files" / direction / str(track) / str(frame) # where we store state files
+    return str(state_output_dir / f"{ref_rslc_id}_nisar.deleted")
+
+def run_snakemake(targets, jobs, local_cores, dry_run, track, frame, direction, product_path):
 
     cmd = [
         "snakemake",
+        ] + targets + [
         "--executor", "slurm",
         "--jobs", str(jobs),
         "--local-cores", str(local_cores),
+        "--config", f"track={track}", f"frame={frame}", f"direction={direction}", f"product_path={product_path}",
         ]
     
     if dry_run:
         cmd.append("-n")
         cmd.append("--printshellcmds")
     
-    cmd += targets
+    # cmd += targets
 
     result = subprocess.run(cmd)
 
@@ -67,25 +73,41 @@ def main():
         help="Snakemake dry-run, useful to test if the workflow is defined properly and to estimate the amount of needed computation."
         )
     parser.add_argument(
-    "--pairs-state", type=Path,
-    help="Path to json file containing NISAR RSLC pairs to be processed"
-    )
-    parser.add_argument(
-        "--jobs", type=int, default=1,
+        "--jobs", type=int, default=4,
         help="Number of jobs to pass to Snakemake, default is 1 for single GPU"
-    )
+        )
     parser.add_argument(
         "--local-cores", type=int, default=4,
         help="Number of CPU cores to use on the login node, default is 4"
+        )
+    parser.add_argument(
+        "--direction", type=str, required=True,
+        help="NISAR flight direction [ASCENDING|DESCENDING]"
+    )
+    parser.add_argument(
+        "--track", type=int, required=True,
+        help="NISAR track number"
+        )
+    parser.add_argument(
+        "--frame", type=int, required=True,
+        help="NISAR frame number"
+    )
+    parser.add_argument(
+        "--product-path", type=str, required=True,
+        help="Path to save NISAR output products to (can be .)"
     )
 
     args = parser.parse_args()
 
-    if not args.pairs_state.exists():
+    root = Path.cwd()
+    state_output_dir = root / "state_files" / str(args.direction) / str(args.track) / str(args.frame)
+    pairs_state = state_output_dir / f"nisar_rslc_ifg_pairs_track{args.track}_frame{args.frame}.json"
+
+    if not pairs_state.exists():
         print("Json pair state not found, exiting")
         sys.exit(1)
 
-    pairs = load_rslc_pairs(args.pairs_state)
+    pairs = load_rslc_pairs(pairs_state)
     ref_rslc_order = build_ref_rslc_order(pairs)
     ref_rslc2pairs = build_ref_rslc2pairs(pairs)
 
@@ -98,13 +120,13 @@ def main():
         # print(ref_rslc_id)
 
         pair_ids = ref_rslc2pairs[ref_rslc_id]
-        targets = [str(done_path(p)) for p in pair_ids]
-        targets.append(str(state_output_dir / f"{ref_rslc_id}.deleted"))
+        targets = [str(done_path(p, args.track, args.frame, args.direction)) for p in pair_ids]
+        targets.append(str(deleted_path(ref_rslc_id, args.track, args.frame, args.direction)))
         
-        success =  run_snakemake(targets, args.jobs, args.local_cores, args.dry_run)
+        success =  run_snakemake(targets, args.jobs, args.local_cores, args.dry_run, args.track, args.frame, args.direction, args.product_path)
 
         if not success:
-            print("Snakemake failed on batch {batch_idx}, exiting")
+            print(f"Snakemake failed on batch {batch_idx}, exiting")
             sys.exit(1)
 
 if __name__ == '__main__':
